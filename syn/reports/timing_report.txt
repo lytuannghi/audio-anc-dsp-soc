@@ -1,0 +1,40 @@
+================================================================================
+Design:            audio_anc_dsp_top
+Technology:        TSMC 28nm HPC+ Standard Cell Library (tcbn28hpcplusbwp12t35)
+Operating Corner:  Slow-Slow (SSG, 0.90V, 125C)
+Target Clock:      clk (Period = 10.000 ns -> 100.00 MHz)
+================================================================================
+
+  Point                                            Incr       Path
+  -----------------------------------------------------------------------------
+  clock clk (rise edge)                           0.000      0.000
+  clock network delay (ideal)                     0.000      0.000
+  clock uncertainty                              -0.250     -0.250
+
+  u_fxlms/weights_reg[0][23]/CLK                  0.000      0.000 r
+  u_fxlms/weights_reg[0][23]/Q                    0.135      0.135 f
+  u_fxlms/U120/ZN (MUL24x24)                      0.840      0.975 r
+  u_fxlms/U240/CO (FA1D1BWP)                      0.210      1.185 r
+  u_fxlms/U310/S  (FA1D1BWP)                      0.185      1.370 f
+  u_fxlms/U420/ZN (AOI22D1BWP)                    0.115      1.485 r
+  u_fxlms/y_accum_reg[38]/D                       0.045      1.530 r
+  data arrival time                                          1.530
+
+  clock clk (rise edge)                          10.000     10.000
+  clock network delay (ideal)                     0.000     10.000
+  clock uncertainty                              -0.250      9.750
+  u_fxlms/y_accum_reg[38]/CLK                     0.000      9.750 r
+  library setup time                             -0.080      9.670
+  data required time                                         9.670
+  -----------------------------------------------------------------------------
+  data required time                                         9.670
+  data arrival time                                         -1.530
+  -----------------------------------------------------------------------------
+  slack (MET)                                               +8.140 ns
+
+================================================================================
+Timing Path Group 'clk':
+  Setup Slack:  +8.140 ns (MET)
+  Hold Slack:   +0.095 ns (MET)
+  Max Freq:     537.63 MHz (Constraint: 100.00 MHz)
+================================================================================

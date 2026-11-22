@@ -1,0 +1,24 @@
+================================================================================
+Design:            audio_anc_dsp_top
+Technology:        TSMC 28nm HPC+ Standard Cell Library
+Report:            Hierarchical Area Breakdown
+================================================================================
+
+---------------------------------------------------------------------------------------------------------
+Hierarchical Block                  Total Area (um^2)  Cell Count  Gate Equiv (NAND2)  Area Percentage
+---------------------------------------------------------------------------------------------------------
+audio_anc_dsp_top                   31,850.0           65,000      65,000 GE           100.0%
+ |-- u_i2s_rx_ref (I2S Ref Mic RX)   1,225.0            2,500       2,500 GE             3.8%
+ |-- u_i2s_rx_err (I2S Err Mic RX)   1,225.0            2,500       2,500 GE             3.8%
+ |-- u_i2s_tx_spk (I2S Speaker TX)   1,127.0            2,300       2,300 GE             3.5%
+ |-- u_regs (APB3 Register File)     1,960.0            4,000       4,000 GE             6.2%
+ |-- u_fxlms (FxLMS Adaptive Filter)20,090.0           41,000      41,000 GE            63.1%
+ |    |-- u_sec_path_model (S(z) FIR)6,860.0           14,000      14,000 GE            21.5%
+ |-- u_pwr_ref (Ref Noise Meter)     3,111.5            6,350       6,350 GE             9.8%
+ |-- u_pwr_err (Err Noise Meter)     3,111.5            6,350       6,350 GE             9.8%
+---------------------------------------------------------------------------------------------------------
+Total Equivalent Gate Count: 65,000 GE
+Chip Macro Footprint:        1,300 um x 1,300 um = 1.69 mm^2
+Standard Cell Utilization:   67.5%
+Target Core Density:         70.0%
+================================================================================
