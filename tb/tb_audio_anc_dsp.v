@@ -40,6 +40,23 @@ module tb_audio_anc_dsp;
     wire status_anc_active;
     wire status_divergence_alert;
 
+    reg [31:0] spk_sd_ones;
+    reg        saw_fxlms_valid;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            spk_sd_ones     <= 32'd0;
+            saw_fxlms_valid <= 1'b0;
+        end else begin
+            if (u_dut.anti_noise_valid) saw_fxlms_valid <= 1'b1;
+        end
+    end
+    always @(posedge i2s_sck or negedge rst_n) begin
+        if (!rst_n)
+            spk_sd_ones <= 32'd0;
+        else if (i2s_spk_sd == 1'b1)
+            spk_sd_ones <= spk_sd_ones + 32'd1;
+    end
+
     integer tests_passed = 0;
     integer tests_failed = 0;
 
@@ -208,7 +225,7 @@ module tb_audio_anc_dsp;
         // -------------------------------------------------------------
         send_i2s_frame(24'sh123456, 24'sh654321);
         #10;
-        if (u_dut.u_i2s_rx_ref.ws_sync[1] == 1'b1 || u_dut.u_i2s_rx_ref.left_data != 24'sd0) begin
+        if (u_dut.u_i2s_rx_ref.ws_sync[1] == 1'b1 && u_dut.u_i2s_rx_ref.left_data == 24'sh123456) begin
             $display("[PASS] Test 2: I2S Receiver locked to Bit Clock (SCK) and Word Select (WS).");
             tests_passed = tests_passed + 1;
         end else begin
@@ -257,8 +274,8 @@ module tb_audio_anc_dsp;
             end
         end
 
-        #20;
-        if (u_dut.u_fxlms.weights[0] != 24'sd0 || u_dut.u_fxlms.anti_noise_out != 24'sd0) begin
+        #40;
+        if (saw_fxlms_valid && u_dut.u_fxlms.weights[0] != 24'sd0 && u_dut.u_fxlms.anti_noise_out != 24'sd0) begin
             $display("[PASS] Test 5: FxLMS Adaptive Filter weights adapted dynamically (W0 = %d).", u_dut.u_fxlms.weights[0]);
             tests_passed = tests_passed + 1;
         end else begin
@@ -269,12 +286,11 @@ module tb_audio_anc_dsp;
         // -------------------------------------------------------------
         // Test 6: Anti-Noise 180-degree Phase Inversion Verification
         // -------------------------------------------------------------
-        // Verify that anti_noise_out opposes the polarity of acoustic noise
-        if (u_dut.u_fxlms.anti_noise_valid == 1'b1 || u_dut.anti_noise_final != 24'sd0) begin
-            $display("[PASS] Test 6: Anti-noise phase inversion active (-y[n] generated for acoustic cancellation).");
+        if (saw_fxlms_valid && ($signed(u_dut.anti_noise_final) < 24'sd0)) begin
+            $display("[PASS] Test 6: Anti-noise phase inversion active (-y[n]=%0d opposes positive noise).", $signed(u_dut.anti_noise_final));
             tests_passed = tests_passed + 1;
         end else begin
-            $display("[FAIL] Test 6: Anti-noise output inactive.");
+            $display("[FAIL] Test 6: Anti-noise phase inversion inactive (%0d).", $signed(u_dut.anti_noise_final));
             tests_failed = tests_failed + 1;
         end
 
@@ -293,25 +309,24 @@ module tb_audio_anc_dsp;
         // -------------------------------------------------------------
         // Test 8: Divergence Protection & Weight Clamping Safeguard
         // -------------------------------------------------------------
-        // Inject extreme overload impulse (0x7FFFFF)
         send_i2s_frame(24'sh7FFFFF, 24'sh7FFFFF);
-        #20;
-        if (!status_divergence_alert || u_dut.u_fxlms.weights[0] <= 24'sd8388607) begin
-            $display("[PASS] Test 8: Divergence Protection and Saturation Clamping verified.");
+        #40;
+        if (u_dut.u_fxlms.weights[0] > 24'sd0 && !status_divergence_alert) begin
+            $display("[PASS] Test 8: Divergence Protection active; adaptive weights bounded (W0=%0d).", u_dut.u_fxlms.weights[0]);
             tests_passed = tests_passed + 1;
         end else begin
-            $display("[FAIL] Test 8: Weight overflowed beyond saturation bounds.");
+            $display("[FAIL] Test 8: Unexpected weight divergence state.");
             tests_failed = tests_failed + 1;
         end
 
         // -------------------------------------------------------------
         // Test 9: I2S Transmitter Speaker DAC Serialization
         // -------------------------------------------------------------
-        if (u_dut.u_i2s_tx_spk.shift_reg != 32'd0 || i2s_spk_sd !== 1'bx) begin
-            $display("[PASS] Test 9: I2S Audio Transmitter serializing anti-noise to speaker.");
+        if (spk_sd_ones > 32'd0) begin
+            $display("[PASS] Test 9: I2S Audio Transmitter actively serialized %0d non-zero bits on i2s_spk_sd.", spk_sd_ones);
             tests_passed = tests_passed + 1;
         end else begin
-            $display("[FAIL] Test 9: I2S Transmitter output invalid.");
+            $display("[FAIL] Test 9: I2S Transmitter produced all-zero serial output.");
             tests_failed = tests_failed + 1;
         end
 
@@ -322,9 +337,15 @@ module tb_audio_anc_dsp;
         apb_write(8'h10, 32'h00000080); // Change volume_gain to 128 (50%)
         apb_read(8'h08, read_val);
 
-        if (read_val == 32'h00001000 && u_dut.reg_volume_gain == 8'd128) begin
-            $display("[PASS] Test 10: APB3 runtime parameter reconfiguration verified (mu=0x1000, vol=50%%).");
-            tests_passed = tests_passed + 1;
+        if (read_val == 32'h00001000) begin
+            apb_read(8'h10, read_val);
+            if (read_val == 32'h00000080) begin
+                $display("[PASS] Test 10: APB3 runtime parameter reconfiguration verified (mu=0x1000, vol=50%%).");
+                tests_passed = tests_passed + 1;
+            end else begin
+                $display("[FAIL] Test 10: APB3 volume readback failed (got %h).", read_val);
+                tests_failed = tests_failed + 1;
+            end
         end else begin
             $display("[FAIL] Test 10: APB3 parameter update failed (got %h).", read_val);
             tests_failed = tests_failed + 1;

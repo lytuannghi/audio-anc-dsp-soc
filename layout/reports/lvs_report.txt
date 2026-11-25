@@ -1,28 +1,8 @@
 ================================================================================
-CALIBRE LVS REPORT - ACTIVE NOISE CANCELLATION AUDIO DSP SOC
-Target Technology: TSMC 28nm HPC+ CMOS Process
-Schematic Source:  syn/netlist/audio_anc_dsp_top_syn.v
-Layout GDSII:      layout/gds/audio_anc_dsp_top.gds
-Top Cell:          audio_anc_dsp_top
+PHYSICAL GEOMETRY & TOP-LEVEL PORT AUDIT: audio_anc_dsp_top
+Process Node: SkyWater 130nm (DB Unit: 1 nm)
+Layout File:  layout/gds/audio_anc_dsp_top.gds
 ================================================================================
 
---- EXTRACTION AND COMPARISON SUMMARY ---
-  Schematic Instances:       65,000
-  Layout Instances:          65,000
-  Unmatched Instances:            0
-
-  Schematic Nets:            68,920
-  Layout Nets:               68,920
-  Unmatched Nets:                 0
-
-  Schematic Ports:               47
-  Layout Ports:                  47
-  Unmatched Ports:                0
-
-  Power Nets Check:
-    VDD  ................... MATCHED (100.0%)
-    VSS  ................... MATCHED (100.0%)
-
-================================================================================
-LVS COMPARISON STATUS: 100% MATCHED - CLEAN (ZERO DISCREPANCIES)
-================================================================================
+GDSII Geometry Check (verify_gds_drc.py): 0 geometric DRC violations (verified polygons)
+Note: External Magic/Netgen required for transistor-level SPICE extraction & LVS.

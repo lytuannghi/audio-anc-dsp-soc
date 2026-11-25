@@ -60,6 +60,10 @@ module fxlms_engine #(
 
     // FIR Multiply-Accumulate Tree for y(n) = sum(W_k * x(n-k))
     reg signed [47:0] y_accum;
+    reg               calc_pending;
+    reg signed [39:0] grad_term;
+    reg signed [39:0] new_w;
+    reg signed [23:0] y_norm;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -68,6 +72,7 @@ module fxlms_engine #(
             residual_err     <= 24'sd0;
             divergence_flag  <= 1'b0;
             y_accum          <= 48'sd0;
+            calc_pending     <= 1'b0;
             for (i = 0; i < TAPS; i = i + 1) begin
                 x_delay[i]  <= 24'sd0;
                 xp_delay[i] <= 24'sd0;
@@ -77,7 +82,9 @@ module fxlms_engine #(
             for (i = 0; i < TAPS; i = i + 1) begin
                 weights[i] <= 24'sd0;
             end
-            divergence_flag <= 1'b0;
+            divergence_flag  <= 1'b0;
+            calc_pending     <= 1'b0;
+            anti_noise_valid <= 1'b0;
         end else begin
             anti_noise_valid <= 1'b0;
 
@@ -90,7 +97,7 @@ module fxlms_engine #(
                     xp_delay[i] <= xp_delay[i-1];
                 end
 
-                if (anc_enable) begin
+                if (anc_enable && !divergence_flag) begin
                     // Step 1: Synthesize predicted acoustic noise y(n) = sum(w_k * x_k)
                     y_accum <= (ref_noise_in * weights[0])  +
                                (x_delay[0]   * weights[1])  +
@@ -110,14 +117,10 @@ module fxlms_engine #(
                                (x_delay[14]  * weights[15]);
 
                     // Step 2: Weight update: W_k = (1 - gamma)*W_k + mu * e * x'_k
-                    // Calculate gradient term: grad = (err_noise_in * mu_step) >>> 15
                     for (i = 0; i < TAPS; i = i + 1) begin
-                        reg signed [39:0] grad_term;
-                        reg signed [39:0] new_w;
-                        grad_term = (err_noise_in * xp_delay[i]) >>> 20; // Scaled gradient
+                        grad_term = (err_noise_in * xp_delay[i]) >>> 20;
                         new_w     = weights[i] + ((grad_term * mu_step) >>> 15) - ((weights[i] * leak_factor) >>> 15);
 
-                        // Weight clamping to prevent overflow divergence
                         if (new_w > 40'sd8388607) begin
                             weights[i]      <= 24'sd8388607;
                             divergence_flag <= 1'b1;
@@ -129,18 +132,21 @@ module fxlms_engine #(
                         end
                     end
 
-                    anti_noise_valid <= 1'b1;
+                    calc_pending <= 1'b1;
                 end else begin
                     // Bypass mode: Anti-noise zeroed
                     anti_noise_out   <= 24'sd0;
+                    residual_err     <= err_noise_in;
                     anti_noise_valid <= 1'b1;
+                    calc_pending     <= 1'b0;
                 end
-            end else if (anti_noise_valid) begin
+            end else if (calc_pending) begin
                 // Invert phase of predicted noise to emit anti-noise: y_anti = -y(n)
-                reg signed [23:0] y_norm;
-                y_norm = y_accum[38:15]; // Normalize from Q1.23 * Q1.23
-                anti_noise_out <= -y_norm;
-                residual_err   <= err_noise_in + (-y_norm); // Active canceled error
+                y_norm           = y_accum[38:15];
+                anti_noise_out   <= -y_norm;
+                residual_err     <= err_noise_in + (-y_norm);
+                anti_noise_valid <= 1'b1;
+                calc_pending     <= 1'b0;
             end
         end
     end

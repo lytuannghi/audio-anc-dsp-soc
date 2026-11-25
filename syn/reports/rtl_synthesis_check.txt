@@ -1,0 +1,25 @@
+================================================================================
+RTL SYNTHESIS READINESS & CONSTRAINT REPORT: audio-anc-dsp-soc
+Method : Static Verilog/SV Structural Parser + SDC Constraint Audit
+Note   : Foundry Gate-Level Netlist & STA require PDK Liberty (.lib) + Synopsys/OpenROAD
+================================================================================
+RTL Source Files Inspected : 7
+Code Lines (Non-Comment)   : 528
+Sequential Blocks          : 8
+Combinational Blocks       : 1
+Declared reg/logic Signals : 45
+
+MODULE BREAKDOWN:
+  rtl\anc\fxlms_engine.v                        | modules=fxlms_engine                 | loc= 113 | seq= 1 | comb= 0
+  rtl\audio_anc_dsp_top.v                       | modules=audio_anc_dsp_top            | loc= 125 | seq= 0 | comb= 0
+  rtl\bus\audio_anc_regs.v                      | modules=audio_anc_regs               | loc=  63 | seq= 1 | comb= 0
+  rtl\dsp\audio_fir_filter.v                    | modules=audio_fir_filter             | loc=  77 | seq= 1 | comb= 0
+  rtl\dsp\noise_power_meter.v                   | modules=noise_power_meter            | loc=  32 | seq= 1 | comb= 1
+  rtl\i2s\i2s_rx.v                              | modules=i2s_rx                       | loc=  62 | seq= 2 | comb= 0
+  rtl\i2s\i2s_tx.v                              | modules=i2s_tx                       | loc=  56 | seq= 2 | comb= 0
+
+SDC CLOCK CONSTRAINTS:
+  anc_timing.sdc: port=clk | period=10.00 ns | target=100.00 MHz
+
+ARITHMETIC DIVISION/MODULO CHECK: CLEAN (0 combinational / or % operators)
+================================================================================

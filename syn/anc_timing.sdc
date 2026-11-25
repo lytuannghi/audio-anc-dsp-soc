@@ -1,7 +1,7 @@
 # ==============================================================================
 # Synopsys Design Constraints (SDC) - Active Noise Cancellation Audio DSP SoC
-# Target Technology: TSMC 28nm HPC+ Standard Cell Logic Library
-# Operating Corner: Worst-Case Slow-Slow Corner (SSG, 0.90V, 125C)
+# Target Technology: SkyWater 130nm HD Standard Cell Library (1.80V, 25C)
+# Operating Corner: SkyWater 130nm HD Typical Corner (1.80V, 25C)
 # Target Frequency: 100.0 MHz (Period = 10.000 ns)
 # ==============================================================================
 
@@ -26,7 +26,7 @@ set_output_delay -clock clk -max 1.500 [get_ports {prdata[*] pready pslverr}]
 set_output_delay -clock clk -min 0.300 [get_ports {prdata[*] pready pslverr}]
 
 # Drive Strength & Load
-set_driving_cell -lib_cell INVX4 [get_ports {i2s_mic_sck i2s_mic_ws i2s_ref_sd i2s_err_sd i2s_spk_sck i2s_spk_ws paddr[*] psel penable pwrite pwdata[*]}]
+set_driving_cell -lib_cell sky130_fd_sc_hd__inv_4 [get_ports {i2s_mic_sck i2s_mic_ws i2s_ref_sd i2s_err_sd i2s_spk_sck i2s_spk_ws paddr[*] psel penable pwrite pwdata[*]}]
 set_load 0.025 [all_outputs]
 
 # False Paths
