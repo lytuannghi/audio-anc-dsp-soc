@@ -57,14 +57,10 @@ The SoC implements a complete dual-channel audio processing pipeline incorporati
 
 | Parameter | Specification | Realized Implementation |
 | :--- | :--- | :--- |
-| Target Semiconductor Node | SkyWater 130nm HPC+ Standard Cell Logic | sky130_fd_sc_hd |
-| Target Clock Frequency | 100.00 MHz | 100.00 MHz (Max: 537.63 MHz) |
+| Target Semiconductor Node | SkyWater 130nm (`sky130_fd_sc_hd`) | 1P5M GDSII Layer Deck |
+| Target Clock Budget (SDC) | 100.00 MHz | Constrained in `syn/*.sdc` (external OpenSTA needed for slack) |
 | Clock Period | 10.000 ns | 10.000 ns |
-| Setup Timing Slack | Positive Slack (MET) | +8.140 ns (TNS: 0.000 ns) |
-| Hold Timing Slack | Positive Slack (MET) | +0.095 ns (WNS: 0.000 ns) |
-| Total Silicon Core Area | Sub-0.04 mm^2 Standard Cell Area | 31,850 um^2 (Die: 1.69 mm^2) |
-| Standard Cell Density | 60% - 75% | 67.5% Core Utilization |
-| Physical Layout Footprint | Symmetrical Macro Geometry | 1300.0 um x 1300.0 um |
+| GDSII Die Footprint | 360.00 um x 360.00 um | Geometric DRC Clean (0 violations) |
 | Verification Testbench Pass Rate | 100% Assertion Coverage | 10 / 10 Tests PASS (100.0%) |
 
 ---
@@ -107,44 +103,45 @@ The SoC implements a complete dual-channel audio processing pipeline incorporati
 
 ---
 
-## Area Breakdown
+## RTL Synthesis Readiness & SDC Audit
 
-| :--- | :--- | :--- | :--- |
-| `audio_anc_dsp_top` (Total) | 31,850.0 | 65,000 GE | 100.0% |
-| `u_i2s_rx_ref` (Ref Mic RX) | 1,225.0 | 2,500 GE | 3.8% |
-| `u_i2s_rx_err` (Err Mic RX) | 1,225.0 | 2,500 GE | 3.8% |
-| `u_i2s_tx_spk` (Speaker TX) | 1,127.0 | 2,300 GE | 3.5% |
-| `u_regs` (APB3 Register File) | 1,960.0 | 4,000 GE | 6.2% |
-| `u_fxlms` (FxLMS Adaptive Filter) | 20,090.0 | 41,000 GE | 63.1% |
-| `|-- u_sec_path_model` (S(z) FIR) | 6,860.0 | 14,000 GE | 21.5% |
-| `u_pwr_ref` (Ref Noise Meter) | 3,111.5 | 6,350 GE | 9.8% |
-| `u_pwr_err` (Err Noise Meter) | 3,111.5 | 6,350 GE | 9.8% |
+Static Verilog-2005 structural parsing and SDC constraint audit were executed via `syn/analyze_rtl.py` (external Yosys/OpenROAD/OpenSTA required for post-synthesis gate counts, utilization, and STA slack):
 
----
+```text
+================================================================================
+RTL SYNTHESIS READINESS & CONSTRAINT REPORT: audio-anc-dsp-soc
+Method : Static Verilog/SV Structural Parser + SDC Constraint Audit
+Note   : Foundry Gate-Level Netlist & STA require PDK Liberty (.lib) + Synopsys/OpenROAD
+================================================================================
+RTL Source Files Inspected : 7
+Code Lines (Non-Comment)   : 528
+Sequential Blocks          : 8
+Combinational Blocks       : 1
+Declared reg/logic Signals : 45
 
-## Static Timing Analysis (STA) Summary
+MODULE BREAKDOWN:
+  rtl\anc\fxlms_engine.v                        | modules=fxlms_engine                 | loc= 113 | seq= 1 | comb= 0
+  rtl\audio_anc_dsp_top.v                       | modules=audio_anc_dsp_top            | loc= 125 | seq= 0 | comb= 0
+  rtl\bus\audio_anc_regs.v                      | modules=audio_anc_regs               | loc=  63 | seq= 1 | comb= 0
+  rtl\dsp\audio_fir_filter.v                    | modules=audio_fir_filter             | loc=  77 | seq= 1 | comb= 0
+  rtl\dsp\noise_power_meter.v                   | modules=noise_power_meter            | loc=  32 | seq= 1 | comb= 1
+  rtl\i2s\i2s_rx.v                              | modules=i2s_rx                       | loc=  62 | seq= 2 | comb= 0
+  rtl\i2s\i2s_tx.v                              | modules=i2s_tx                       | loc=  56 | seq= 2 | comb= 0
 
-Static timing analysis executed under worst-case Slow-Slow Corner ($0.90\text{ V}, 125^\circ\text{C}$):
+SDC CLOCK CONSTRAINTS:
+  anc_timing.sdc: port=clk | period=10.00 ns | target=100.00 MHz
 
-```
-Target Clock: clk (Period = 10.000 ns -> 100.00 MHz)
-Clock Uncertainty: Setup = 250 ps, Hold = 100 ps
-Critical Path: u_fxlms/weights_reg[0][23]/CLK -> u_fxlms/y_accum_reg[38]/D
-
-Data Required Time: 9.670 ns
-Data Arrival Time:  1.530 ns
------------------------------------------------------------------------------
-Total Negative Slack (TNS): 0.000 ns
-Fmax (Theoretical Maximum): 537.63 MHz
+ARITHMETIC DIVISION/MODULO CHECK: CLEAN (0 combinational / or % operators)
+================================================================================
 ```
 
 ---
 
 ## Verification and Test Coverage
 
-The verification testbench (`tb/tb_audio_anc_dsp.v` and `sim/run_simulation.py`) executes 10 comprehensive assertion checks:
+Executed via Icarus Verilog (`iverilog -Wall -g2005`) and `vvp` (`sim/run_simulation.py`):
 
-```
+```text
 =====================================================================
    ACTIVE NOISE CANCELLATION (ANC) AUDIO DSP SOC TESTBENCH           
 =====================================================================
@@ -152,24 +149,25 @@ The verification testbench (`tb/tb_audio_anc_dsp.v` and `sim/run_simulation.py`)
 [PASS] Test 2: I2S Receiver locked to Bit Clock (SCK) and Word Select (WS).
 [PASS] Test 3: 24-bit Stereo Audio Deserialization matched expected (0x123456).
 [PASS] Test 4: Secondary Acoustic Path S(z) FIR response verified.
-[PASS] Test 5: FxLMS Adaptive Filter weights adapted dynamically (W0 = 42582).
-[PASS] Test 6: Anti-noise phase inversion active (-y[n] generated for acoustic cancellation).
-[PASS] Test 7: Real-Time Acoustic Noise Power Metering operational (Power = 54148474).
-[PASS] Test 8: Divergence Protection and Saturation Clamping verified.
-[PASS] Test 9: I2S Audio Transmitter serializing anti-noise to speaker.
+[PASS] Test 5: FxLMS Adaptive Filter weights adapted dynamically (W0 =    42582).
+[PASS] Test 6: Anti-noise phase inversion active (-y[n]=-961494 opposes positive noise).
+[PASS] Test 7: Real-Time Acoustic Noise Power Metering operational (Power =   54148474).
+[PASS] Test 8: Divergence Protection active; adaptive weights bounded (W0=59591).
+[PASS] Test 9: I2S Audio Transmitter actively serialized 216 non-zero bits on i2s_spk_sd.
 [PASS] Test 10: APB3 runtime parameter reconfiguration verified (mu=0x1000, vol=50%).
 =====================================================================
-   TEST SUMMARY: PASSED 10 / 10 TESTS (100% PASS RATE)
+   TEST SUMMARY: PASSED 10 / 10 TESTS
 =====================================================================
+>>> ALL 10 VERIFICATION TESTS COMPLETED WITH 100% PASS RATE <<<
 ```
 
 ---
 
-## Physical Design and Sign-off
+## Physical Design and Geometry Audit
 
-- **GDSII Stream File:** `layout/gds/audio_anc_dsp_top.gds` ($1300.0\,\mu\text{m} \times 1300.0\,\mu\text{m}$).
-- **Design Rule Check (DRC):** Clean (0 violations in SkyWater 130nm HPC+ rule deck).
-- **Layout Versus Schematic (LVS):** 100% matched across all 65,000 active standard cell instances.
+- **GDSII Stream File:** `layout/gds/` (360.00 um x 360.00 um SkyWater 130nm floorplan).
+- **Geometric DRC (`layout/scripts/verify_gds_drc.py`):** Clean (0 geometric violations).
+- **Port & Netlist Audit (`layout/reports/lvs_report.txt`):** Top-level geometry documented; external Magic/Netgen required for SPICE LVS.
 
 ---
 
